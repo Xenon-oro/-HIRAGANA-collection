@@ -124,20 +124,6 @@
       max-height: 250px;
     }
 
-    /* 画像内文字の伏字表示エリア */
-    .image-text-hint {
-      background: #0f172a;
-      padding: 10px;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 1rem;
-      line-height: 1.6;
-      border-left: 3px solid var(--accent-color);
-      white-space: pre-wrap;
-      text-align: center;
-      letter-spacing: 2px;
-    }
-
     .input-group {
       display: flex;
       gap: 8px;
@@ -197,6 +183,19 @@
       text-align: center;
     }
 
+    .image-text-hint {
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 1rem;
+      line-height: 1.6;
+      border-left: 3px solid #a855f7;
+      white-space: pre-wrap;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -219,7 +218,7 @@
 <body>
 
   <h1>言語解読 Web謎</h1>
-  <div class="subtitle">謎を解き明かし、画像内の隠された文字を解読せよ</div>
+  <div class="subtitle">謎を解き明かし、言語を解読せよ</div>
 
   <!-- 解読ログ -->
   <div class="decryption-panel">
@@ -235,7 +234,7 @@
     <div class="card last-card" id="lastCard">
       <h2>LAST PUZZLE</h2>
       <div class="image-text-hint" id="lastQuestionText"></div>
-      <div style="text-align:center; padding: 20px; color: #e9d5ff; border: 1px dashed #a855f7; border-radius: 6px;">
+      <div style="text-align:center; padding: 15px; color: #e9d5ff; border: 1px dashed #a855f7; border-radius: 6px; margin: 10px 0;">
         すべての言語解読が完了しました。<br>解読された言葉とこれまでの法則をもとに、最後の答えを導き出してください。
       </div>
       <div class="input-group">
@@ -249,12 +248,11 @@
   </div>
 
   <script>
-    // 各画像内に含まれている文字データの定義（ご指定いただいた内容）
+    // 各画像内の文字データ（正解時に解読される文字リスト）
     const puzzles = [
       {
         id: 1,
         title: "問 1 (チュートリアル)",
-        imageText: "かたたたき",
         answer: "かき",
         unlockText: "かたたたき",
         isTutorial: true,
@@ -263,7 +261,6 @@
       {
         id: 2,
         title: "問 2",
-        imageText: "あるふぁべっと、げんしばんごう、2",
         answer: "5",
         unlockText: "あるふぁべっとげんしばんごう2",
         imageSrc: "2.png"
@@ -271,7 +268,6 @@
       {
         id: 3,
         title: "問 3",
-        imageText: "ある、なし、そら、うみ、らっぱ、ぴあの、ひとり",
         answer: "みんな",
         unlockText: "あるなしそらうみらっぱぴあのひとり",
         imageSrc: "3.png"
@@ -279,7 +275,6 @@
       {
         id: 4,
         title: "問 4",
-        imageText: "あつい、しょ、こう",
         answer: "ねつ",
         unlockText: "あついしょこう",
         imageSrc: "4.png"
@@ -287,7 +282,6 @@
       {
         id: 5,
         title: "問 5",
-        imageText: "いしゃ、どくたー、や、たー",
         answer: "どく",
         unlockText: "いしゃどくたーやたー",
         imageSrc: "5.png"
@@ -295,7 +289,6 @@
       {
         id: 6,
         title: "問 6",
-        imageText: "BIG、SMALL",
         answer: "BALL",
         unlockText: "BIGSMALL",
         imageSrc: "6.png"
@@ -303,7 +296,6 @@
       {
         id: 7,
         title: "問 7",
-        imageText: "りか、ぶつり、かがく、せいぶつ",
         answer: "ちがく",
         unlockText: "りかぶつりかがくせいぶつ",
         imageSrc: "7.png"
@@ -311,7 +303,6 @@
       {
         id: 8,
         title: "問 8",
-        imageText: "ひ、らや、る、ま、た",
         answer: "はな",
         unlockText: "ひらやるまた",
         imageSrc: "8.png"
@@ -326,7 +317,6 @@
     let unlockedChars = new Set();
     let solvedPuzzles = new Set();
 
-    // 文字数分の伏字（░）にする関数
     function maskText(text) {
       return text.split('').map(ch => {
         if (ch === '、' || ch === ',' || ch === ' ' || ch === '\n' || ch === '2') {
@@ -345,14 +335,7 @@
       }
     }
 
-    function updateAllQuestionTexts() {
-      puzzles.forEach(p => {
-        const textEl = document.getElementById(`qtext-${p.id}`);
-        if (textEl) {
-          textEl.textContent = maskText(p.imageText);
-        }
-      });
-
+    function updateLastText() {
       const lastTextEl = document.getElementById('lastQuestionText');
       if (lastTextEl) {
         lastTextEl.textContent = maskText(lastPuzzle.imageText);
@@ -390,7 +373,7 @@
       }
 
       updateUnlockedCharsUI();
-      updateAllQuestionTexts();
+      updateLastText();
 
       if (solvedPuzzles.size === puzzles.length) {
         const lastContainer = document.getElementById('lastContainer');
@@ -413,7 +396,6 @@
             <span class="status-badge">未解読</span>
           </div>
           <img class="puzzle-image" src="${p.imageSrc}" alt="${p.title}">
-          <div class="image-text-hint" id="qtext-${p.id}">${maskText(p.imageText)}</div>
           <div class="input-group">
             <input type="text" id="input-${p.id}" placeholder="解答を入力">
             <button id="btn-${p.id}">回答</button>
@@ -459,7 +441,7 @@
       });
 
       updateUnlockedCharsUI();
-      updateAllQuestionTexts();
+      updateLastText();
     }
 
     window.addEventListener('DOMContentLoaded', init);
