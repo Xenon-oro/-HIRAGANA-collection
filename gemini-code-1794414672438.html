@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>言語解読Web謎</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f8fafc;
+      --accent-color: #38bdf8;
+      --success-color: #4ade80;
+      --locked-color: #64748b;
+      --border-color: #334155;
+    }
+
+    body {
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", MeiYo, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--accent-color);
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      margin-bottom: 20px;
+    }
+
+    /* 解読ログパネル */
+    .decryption-panel {
+      background: #0284c715;
+      border: 1px solid var(--accent-color);
+      border-radius: 8px;
+      padding: 15px 20px;
+      width: 100%;
+      max-width: 900px;
+      box-sizing: border-box;
+      margin-bottom: 25px;
+    }
+
+    .decryption-panel h3 {
+      margin: 0 0 8px 0;
+      font-size: 1rem;
+      color: var(--accent-color);
+    }
+
+    .unlocked-chars {
+      word-break: break-all;
+      font-size: 1.1rem;
+      letter-spacing: 2px;
+      color: var(--success-color);
+      min-height: 1.5em;
+    }
+
+    /* グリッドレイアウト */
+    .puzzle-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    /* パズルカード */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .card.locked {
+      opacity: 0.5;
+      pointer-events: none;
+      filter: grayscale(80%);
+    }
+
+    .card.solved {
+      border-color: var(--success-color);
+      box-shadow: 0 0 10px rgba(74, 222, 128, 0.15);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+    }
+
+    .status-badge {
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: var(--locked-color);
+    }
+
+    .card.solved .status-badge {
+      background: var(--success-color);
+      color: #000;
+    }
+
+    .question-text {
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 1rem;
+      line-height: 1.5;
+      min-height: 3em;
+      border-left: 3px solid var(--accent-color);
+      white-space: pre-wrap;
+    }
+
+    .puzzle-image {
+      width: 100%;
+      border-radius: 6px;
+      background: #fff;
+      object-fit: contain;
+      max-height: 250px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: #0f172a;
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent-color);
+    }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent-color);
+      color: #0f172a;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #7dd3fc;
+    }
+
+    button:disabled {
+      background: var(--locked-color);
+      cursor: not-allowed;
+    }
+
+    /* ラスト謎エリア */
+    .last-puzzle-container {
+      margin-top: 30px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .last-card {
+      background: linear-gradient(135deg, #1e1b4b 0%, #311042 100%);
+      border: 2px solid #a855f7;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+    }
+
+    .last-card h2 {
+      color: #c084fc;
+      margin: 0 0 10px 0;
+      text-align: center;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .clear-message {
+      text-align: center;
+      font-size: 1.5rem;
+      color: var(--success-color);
+      font-weight: bold;
+      padding: 20px;
+      animation: pulse 1.5s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.03); }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>言語解読 Web謎</h1>
+  <div class="subtitle">謎を解き明かし、未知の言語を解読せよ</div>
+
+  <!-- 解読ログ -->
+  <div class="decryption-panel">
+    <h3>【解読済み文字一覧】</h3>
+    <div class="unlocked-chars" id="unlockedCharsDisplay">（まだ解読された文字はありません）</div>
+  </div>
+
+  <!-- 1~8問目エリア -->
+  <div class="puzzle-grid" id="puzzleGrid"></div>
+
+  <!-- ラスト問題エリア -->
+  <div class="last-puzzle-container hidden" id="lastContainer">
+    <div class="card last-card" id="lastCard">
+      <h2>LAST PUZZLE</h2>
+      <div class="question-text" id="lastQuestionText"></div>
+      <div style="text-align:center; padding: 20px; color: #e9d5ff; border: 1px dashed #a855f7; border-radius: 6px;">
+        すべての言語解読が完了しました。<br>解読された問題文とこれまでの法則をもとに、最後の答えを導き出してください。
+      </div>
+      <div class="input-group">
+        <input type="text" id="lastAnswerInput" placeholder="最終解答を入力">
+        <button id="lastSubmitBtn">送信</button>
+      </div>
+      <div id="clearArea" class="clear-message hidden">
+        🎉 GAME CLEAR! 全ての謎が解明されました！
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 8問＋ラストのデータ定義
+    // unlockText: その問題を正解したときに解読される「問題文の文字」
+    const puzzles = [
+      {
+        id: 1,
+        title: "問 1 (チュートリアル)",
+        text: "たぬき",
+        answer: "かき",
+        unlockText: "たぬき", // 解答「かき」に含まれる「か」は解読対象に含まれません
+        isTutorial: true,
+        imageSrc: "1.png"
+      },
+      {
+        id: 2,
+        title: "問 2",
+        text: "これのあおいしかくにはいるすうじは？",
+        answer: "5",
+        unlockText: "これのあおいしかくにはいるすうじは？",
+        imageSrc: "2.png"
+      },
+      {
+        id: 3,
+        title: "問 3",
+        text: "たしかめよ",
+        answer: "みんな",
+        unlockText: "たしかめよ",
+        imageSrc: "3.png"
+      },
+      {
+        id: 4,
+        title: "問 4",
+        text: "てあし",
+        answer: "ねつ",
+        unlockText: "てあし",
+        imageSrc: "4.png"
+      },
+      {
+        id: 5,
+        title: "問 5",
+        text: "こたえをえいごに変換せよ\nHOT=? COOL=?",
+        answer: "どく",
+        unlockText: "こたえをえいごに変換せよHOTCOOL",
+        imageSrc: "5.png"
+      },
+      {
+        id: 6,
+        title: "問 6",
+        text: "てあし",
+        answer: "BALL",
+        unlockText: "てあし",
+        imageSrc: "6.png"
+      },
+      {
+        id: 7,
+        title: "問 7",
+        text: "おなじもじがはいるよ\n◯た◯す",
+        answer: "ちがく",
+        unlockText: "おなじもじがはいるよたす",
+        imageSrc: "7.png"
+      },
+      {
+        id: 8,
+        title: "問 8",
+        text: "こたえをえいごに変換せよ",
+        answer: "はな",
+        unlockText: "こたえをえいごに変換せよ",
+        imageSrc: "8.png"
+      }
+    ];
+
+    const lastPuzzle = {
+      title: "LAST QUESTION",
+      text: "解読された全ての言葉が示す真実を答えよ",
+      answer: "ひかり" // ※ラスト問題の正解例（必要に応じて書き換えてください）
+    };
+
+    // 解読済み文字を保持するSet
+    let unlockedChars = new Set();
+    // クリア状態を保持するSet
+    let solvedPuzzles = new Set();
+
+    // 文字列を解読状況に応じてマスクする関数
+    function maskText(text) {
+      return text.split('').map(ch => {
+        // 改行や一般的な記号はそのまま表示
+        if (ch === '\n' || ch === ' ' || ch === '?' || ch === '＝' || ch === '=' || ch === '◯') {
+          return ch;
+        }
+        // 解読済み文字ならそのまま表示、未解読ならダミー文字
+        return unlockedChars.has(ch) ? ch : '░';
+      }).join('');
+    }
+
+    // 解読済み文字一覧のUI更新
+    function updateUnlockedCharsUI() {
+      const display = document.getElementById('unlockedCharsDisplay');
+      if (unlockedChars.size === 0) {
+        display.textContent = "（解読された文字はまだありません）";
+      } else {
+        const sortedChars = Array.from(unlockedChars).join(' ');
+        display.textContent = sortedChars;
+      }
+    }
+
+    // 全パズルの問題文表示を更新
+    function updateAllQuestionTexts() {
+      puzzles.forEach(p => {
+        const textEl = document.getElementById(`qtext-${p.id}`);
+        if (textEl) {
+          textEl.textContent = maskText(p.text);
+        }
+      });
+
+      const lastTextEl = document.getElementById('lastQuestionText');
+      if (lastTextEl) {
+        lastTextEl.textContent = maskText(lastPuzzle.text);
+      }
+    }
+
+    // 正解時の処理
+    function solvePuzzle(id) {
+      if (solvedPuzzles.has(id)) return;
+      solvedPuzzles.add(id);
+
+      const p = puzzles.find(item => item.id === id);
+      
+      // 問題文に含まれる文字を解読リストに追加
+      if (p && p.unlockText) {
+        for (const char of p.unlockText) {
+          if (char !== '\n' && char !== ' ' && char !== '?' && char !== '=' && char !== '◯') {
+            unlockedChars.add(char);
+          }
+        }
+      }
+
+      // UIの更新
+      const card = document.getElementById(`card-${id}`);
+      card.classList.add('solved');
+      const badge = card.querySelector('.status-badge');
+      badge.textContent = "CLEAR";
+
+      const input = document.getElementById(`input-${id}`);
+      const btn = document.getElementById(`btn-${id}`);
+      input.disabled = true;
+      btn.disabled = true;
+
+      // チュートリアル（問1）正解時：問2〜8のロックを解除
+      if (id === 1) {
+        puzzles.forEach(other => {
+          if (other.id !== 1) {
+            const otherCard = document.getElementById(`card-${other.id}`);
+            otherCard.classList.remove('locked');
+          }
+        });
+      }
+
+      updateUnlockedCharsUI();
+      updateAllQuestionTexts();
+
+      // 8問全てクリアしたらラスト問題を解放
+      if (solvedPuzzles.size === puzzles.length) {
+        const lastContainer = document.getElementById('lastContainer');
+        lastContainer.classList.remove('hidden');
+        lastContainer.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    // 初期化とカード描画
+    function init() {
+      const grid = document.getElementById('puzzleGrid');
+
+      puzzles.forEach(p => {
+        const card = document.createElement('div');
+        card.className = `card ${p.isTutorial ? '' : 'locked'}`;
+        card.id = `card-${p.id}`;
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span>${p.title}</span>
+            <span class="status-badge">未解読</span>
+          </div>
+          <div class="question-text" id="qtext-${p.id}">${maskText(p.text)}</div>
+          <img class="puzzle-image" src="${p.imageSrc}" alt="${p.title}">
+          <div class="input-group">
+            <input type="text" id="input-${p.id}" placeholder="解答を入力">
+            <button id="btn-${p.id}">回答</button>
+          </div>
+        `;
+
+        grid.appendChild(card);
+
+        // イベント設定
+        const input = card.querySelector(`#input-${p.id}`);
+        const btn = card.querySelector(`#btn-${p.id}`);
+
+        const checkAnswer = () => {
+          const val = input.value.trim();
+          if (val.toUpperCase() === p.answer.toUpperCase()) {
+            solvePuzzle(p.id);
+          } else {
+            alert("不正解です！");
+          }
+        };
+
+        btn.addEventListener('click', checkAnswer);
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') checkAnswer();
+        });
+      });
+
+      // ラスト問題のイベント設定
+      const lastInput = document.getElementById('lastAnswerInput');
+      const lastBtn = document.getElementById('lastSubmitBtn');
+      
+      const checkLastAnswer = () => {
+        if (lastInput.value.trim() === lastPuzzle.answer) {
+          document.getElementById('clearArea').classList.remove('hidden');
+          lastInput.disabled = true;
+          lastBtn.disabled = true;
+        } else {
+          alert("不正解です！");
+        }
+      };
+
+      lastBtn.addEventListener('click', checkLastAnswer);
+      lastInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') checkLastAnswer();
+      });
+
+      updateUnlockedCharsUI();
+      updateAllQuestionTexts();
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
