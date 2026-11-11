@@ -122,7 +122,7 @@
       border-radius: 6px;
       font-family: monospace;
       font-size: 1rem;
-      line-height: 1.5;
+      line-height: 1.6;
       min-height: 3em;
       border-left: 3px solid var(--accent-color);
       white-space: pre-wrap;
@@ -217,7 +217,7 @@
 <body>
 
   <h1>言語解読 Web謎</h1>
-  <div class="subtitle">謎を解き明かし、未知の言語を解読せよ</div>
+  <div class="subtitle">謎を解き明かし、画像内の未知の文字を解読せよ</div>
 
   <!-- 解読ログ -->
   <div class="decryption-panel">
@@ -247,72 +247,71 @@
   </div>
 
   <script>
-    // 8問＋ラストのデータ定義
-    // unlockText: その問題を正解したときに解読される「問題文の文字」
+    // 各問題のデータと、画像内に含まれる隠しテキストの定義
     const puzzles = [
       {
         id: 1,
         title: "問 1 (チュートリアル)",
-        text: "たぬき",
+        text: "かたたたき",
         answer: "かき",
-        unlockText: "たぬき", // 解答「かき」に含まれる「か」は解読対象に含まれません
+        unlockText: "かたたたき",
         isTutorial: true,
         imageSrc: "1.png"
       },
       {
         id: 2,
         title: "問 2",
-        text: "これのあおいしかくにはいるすうじは？",
+        text: "あるふぁべっと、げんしばんごう、2",
         answer: "5",
-        unlockText: "これのあおいしかくにはいるすうじは？",
+        unlockText: "あるふぁべっとげんしばんごう2",
         imageSrc: "2.png"
       },
       {
         id: 3,
         title: "問 3",
-        text: "たしかめよ",
+        text: "ある、なし、そら、うみ、らっぱ、ぴあの、ひとり",
         answer: "みんな",
-        unlockText: "たしかめよ",
+        unlockText: "あるなしそらうみらっぱぴあのひとり",
         imageSrc: "3.png"
       },
       {
         id: 4,
         title: "問 4",
-        text: "てあし",
+        text: "あつい、しょ、こう",
         answer: "ねつ",
-        unlockText: "てあし",
+        unlockText: "あついしょこう",
         imageSrc: "4.png"
       },
       {
         id: 5,
         title: "問 5",
-        text: "こたえをえいごに変換せよ\nHOT=? COOL=?",
+        text: "いしゃ、どくたー、や、たー",
         answer: "どく",
-        unlockText: "こたえをえいごに変換せよHOTCOOL",
+        unlockText: "いしゃどくたーやたー",
         imageSrc: "5.png"
       },
       {
         id: 6,
         title: "問 6",
-        text: "てあし",
+        text: "BIG、SMALL",
         answer: "BALL",
-        unlockText: "てあし",
+        unlockText: "BIGSMALL",
         imageSrc: "6.png"
       },
       {
         id: 7,
         title: "問 7",
-        text: "おなじもじがはいるよ\n◯た◯す",
+        text: "りか、ぶつり、かがく、せいぶつ",
         answer: "ちがく",
-        unlockText: "おなじもじがはいるよたす",
+        unlockText: "りかぶつりかがくせいぶつ",
         imageSrc: "7.png"
       },
       {
         id: 8,
         title: "問 8",
-        text: "こたえをえいごに変換せよ",
+        text: "ひ、らや、る、ま、た",
         answer: "はな",
-        unlockText: "こたえをえいごに変換せよ",
+        unlockText: "ひらやるまた",
         imageSrc: "8.png"
       }
     ];
@@ -320,38 +319,32 @@
     const lastPuzzle = {
       title: "LAST QUESTION",
       text: "解読された全ての言葉が示す真実を答えよ",
-      answer: "ひかり" // ※ラスト問題の正解例（必要に応じて書き換えてください）
+      answer: "ひかり" // ラストの正解（必要に応じて変更可能）
     };
 
-    // 解読済み文字を保持するSet
     let unlockedChars = new Set();
-    // クリア状態を保持するSet
     let solvedPuzzles = new Set();
 
-    // 文字列を解読状況に応じてマスクする関数
+    // 文字列を文字数分の伏字（░）にする関数
     function maskText(text) {
       return text.split('').map(ch => {
-        // 改行や一般的な記号はそのまま表示
-        if (ch === '\n' || ch === ' ' || ch === '?' || ch === '＝' || ch === '=' || ch === '◯') {
+        // 読点、カンマ、数字の記号、スペース、改行などはそのまま
+        if (ch === '、' || ch === ',' || ch === ' ' || ch === '\n' || ch === '2') {
           return ch;
         }
-        // 解読済み文字ならそのまま表示、未解読ならダミー文字
         return unlockedChars.has(ch) ? ch : '░';
       }).join('');
     }
 
-    // 解読済み文字一覧のUI更新
     function updateUnlockedCharsUI() {
       const display = document.getElementById('unlockedCharsDisplay');
       if (unlockedChars.size === 0) {
         display.textContent = "（解読された文字はまだありません）";
       } else {
-        const sortedChars = Array.from(unlockedChars).join(' ');
-        display.textContent = sortedChars;
+        display.textContent = Array.from(unlockedChars).join(' ');
       }
     }
 
-    // 全パズルの問題文表示を更新
     function updateAllQuestionTexts() {
       puzzles.forEach(p => {
         const textEl = document.getElementById(`qtext-${p.id}`);
@@ -366,39 +359,32 @@
       }
     }
 
-    // 正解時の処理
     function solvePuzzle(id) {
       if (solvedPuzzles.has(id)) return;
       solvedPuzzles.add(id);
 
       const p = puzzles.find(item => item.id === id);
-      
-      // 問題文に含まれる文字を解読リストに追加
       if (p && p.unlockText) {
         for (const char of p.unlockText) {
-          if (char !== '\n' && char !== ' ' && char !== '?' && char !== '=' && char !== '◯') {
+          if (char !== '、' && char !== ',' && char !== ' ' && char !== '\n') {
             unlockedChars.add(char);
           }
         }
       }
 
-      // UIの更新
       const card = document.getElementById(`card-${id}`);
       card.classList.add('solved');
-      const badge = card.querySelector('.status-badge');
-      badge.textContent = "CLEAR";
+      card.querySelector('.status-badge').textContent = "CLEAR";
 
       const input = document.getElementById(`input-${id}`);
       const btn = document.getElementById(`btn-${id}`);
       input.disabled = true;
       btn.disabled = true;
 
-      // チュートリアル（問1）正解時：問2〜8のロックを解除
       if (id === 1) {
         puzzles.forEach(other => {
           if (other.id !== 1) {
-            const otherCard = document.getElementById(`card-${other.id}`);
-            otherCard.classList.remove('locked');
+            document.getElementById(`card-${other.id}`).classList.remove('locked');
           }
         });
       }
@@ -406,7 +392,6 @@
       updateUnlockedCharsUI();
       updateAllQuestionTexts();
 
-      // 8問全てクリアしたらラスト問題を解放
       if (solvedPuzzles.size === puzzles.length) {
         const lastContainer = document.getElementById('lastContainer');
         lastContainer.classList.remove('hidden');
@@ -414,7 +399,6 @@
       }
     }
 
-    // 初期化とカード描画
     function init() {
       const grid = document.getElementById('puzzleGrid');
 
@@ -428,8 +412,8 @@
             <span>${p.title}</span>
             <span class="status-badge">未解読</span>
           </div>
-          <div class="question-text" id="qtext-${p.id}">${maskText(p.text)}</div>
           <img class="puzzle-image" src="${p.imageSrc}" alt="${p.title}">
+          <div class="question-text" id="qtext-${p.id}">${maskText(p.text)}</div>
           <div class="input-group">
             <input type="text" id="input-${p.id}" placeholder="解答を入力">
             <button id="btn-${p.id}">回答</button>
@@ -438,7 +422,6 @@
 
         grid.appendChild(card);
 
-        // イベント設定
         const input = card.querySelector(`#input-${p.id}`);
         const btn = card.querySelector(`#btn-${p.id}`);
 
@@ -457,7 +440,6 @@
         });
       });
 
-      // ラスト問題のイベント設定
       const lastInput = document.getElementById('lastAnswerInput');
       const lastBtn = document.getElementById('lastSubmitBtn');
       
